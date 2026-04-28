@@ -4,12 +4,12 @@ services:
     container_name: edge_guard_backend
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     volumes:
       - ./backend:/app
       - media_files:/app/media
     environment:
-      # Debe apuntar a tu PostgreSQL remoto (defínelo en .env).
-      POSTGRES_URL: ${POSTGRES_URL}
       RUN_MIGRATIONS: ${RUN_MIGRATIONS:-0}
       MEDIA_PATH: /app/media
       SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.55}
