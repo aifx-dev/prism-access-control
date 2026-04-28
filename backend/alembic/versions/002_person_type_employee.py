@@ -16,8 +16,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Omitir ADD VALUE si 'employee' ya existe (re-ejecución / migración manual previa).
-    op.execute("ALTER TYPE persontype ADD VALUE 'employee'")
+    # `ALTER TYPE ... ADD VALUE` no puede usarse y luego referenciar el nuevo valor
+    # dentro de la misma transacción en PostgreSQL.
+    # Usamos un bloque autocommit y además lo hacemos idempotente.
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE persontype ADD VALUE IF NOT EXISTS 'employee'")
     op.execute(
         "UPDATE people SET person_type = 'employee'::persontype "
         "WHERE person_type::text = 'resident'"
