@@ -173,6 +173,22 @@ export function ManualEntryModal() {
         setCameraReady(false)
         setStatusMsg('Iniciando cámara...')
 
+        if (!window.isSecureContext) {
+          setStatusMsg(
+            'La cámara requiere HTTPS (certificado TLS en el servidor). El acceso por http:// a una IP o dominio público no permite la cámara. Use https:// o pruebe desde http://localhost.'
+          )
+          setStep('error')
+          return
+        }
+
+        if (!navigator.mediaDevices?.getUserMedia) {
+          setStatusMsg(
+            'Este navegador no expone la cámara en esta página. Compruebe HTTPS, permisos del sitio y que no haya políticas que bloqueen la cámara.'
+          )
+          setStep('error')
+          return
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
         })
@@ -184,20 +200,41 @@ export function ManualEntryModal() {
 
         streamRef.current = stream
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.onloadedmetadata = () => {
-            if (!cancelled) {
-              videoRef.current?.play()
-              setCameraReady(true)
-              setStatusMsg('Presente su rostro frente a la cámara')
-              resizeMeshCanvas()
-            }
+        // El <video> puede montarse unos frames después del Dialog (portal); sin reintento el stream nunca se enlaza y queda "Iniciando..." indefinidamente.
+        const tryAttach = (attemptsLeft: number) => {
+          if (cancelled) {
+            stream.getTracks().forEach(t => t.stop())
+            streamRef.current = null
+            return
           }
+          const el = videoRef.current
+          if (el) {
+            el.srcObject = stream
+            el.onloadedmetadata = () => {
+              if (!cancelled) {
+                el.play().catch(() => {})
+                setCameraReady(true)
+                setStatusMsg('Presente su rostro frente a la cámara')
+                resizeMeshCanvas()
+              }
+            }
+            return
+          }
+          if (attemptsLeft <= 0) {
+            setStatusMsg(
+              'No se pudo mostrar la vista de la cámara. Cierre el cuadro, vuelva a abrirlo o recargue la página.'
+            )
+            setStep('error')
+            stream.getTracks().forEach(t => t.stop())
+            streamRef.current = null
+            return
+          }
+          requestAnimationFrame(() => tryAttach(attemptsLeft - 1))
         }
+        tryAttach(240)
       } catch (err: any) {
         if (!cancelled) {
-          setStatusMsg('No se pudo acceder a la cámara: ' + err.message)
+          setStatusMsg('No se pudo acceder a la cámara: ' + (err?.message || String(err)))
           setStep('error')
         }
       }
@@ -212,14 +249,15 @@ export function ManualEntryModal() {
     }
   }, [open])
 
-  // Re-attach stream when video element is available (fixes "Volver a escanear" black screen)
+  // Re-enlazar stream al volver al paso de escaneo (vídeo oculto con display:none / Dialog).
   useEffect(() => {
-    if (!open || !videoRef.current || !streamRef.current) return
-    if (videoRef.current.srcObject !== streamRef.current) {
-      videoRef.current.srcObject = streamRef.current
-      videoRef.current.play().catch(() => {})
+    if (!open || step !== 'scanning' || !videoRef.current || !streamRef.current) return
+    const v = videoRef.current
+    if (v.srcObject !== streamRef.current) {
+      v.srcObject = streamRef.current
     }
-  })
+    v.play().catch(() => {})
+  }, [open, step])
 
   // Reset state when opening
   useEffect(() => {

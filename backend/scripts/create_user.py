@@ -1,7 +1,11 @@
 import argparse
 import asyncio
+import os
+import sys
 
 from sqlalchemy import select
+
+sys.path.insert(0, os.path.abspath(os.getcwd()))
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import get_password_hash

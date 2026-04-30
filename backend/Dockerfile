@@ -2,6 +2,7 @@ FROM python:3.11-slim
 
 # Dependencias de sistema requeridas por opencv-python-headless, insightface, onnxruntime y psycopg/libpq
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gosu \
     libpq-dev \
     gcc \
     build-essential \
@@ -34,7 +35,9 @@ RUN mkdir -p /app/media && chown -R appuser:appgroup /app
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-USER appuser
+# El entrypoint arranca como root para chown del volumen montado en /app/media (p. ej. compose),
+# luego ejecuta la app como appuser con gosu.
+USER root
 
 ENV HOME=/home/appuser
 ENV MPLCONFIGDIR=/tmp/matplotlib

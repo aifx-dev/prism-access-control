@@ -1,0 +1,39 @@
+# Stack VPS: imágenes aifxnetworks/edge-guard-* (sobrescribibles con vars en un .env junto a este archivo).
+# Variables de los contenedores: .env.backend y .env.admin (env_file).
+# No uses --env-file en el CLI: imágenes y puertos tienen valor por defecto en el YAML.
+# Comandos: cd esta carpeta → docker compose pull && docker compose up -d
+
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-aifxnetworks/edge-guard-backend:latest}
+    container_name: edge_guard_backend
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    env_file:
+      - .env.backend
+    volumes:
+      # Persistencia de fotos; en .env.backend use MEDIA_PATH=/app/media (el entrypoint ajusta permisos para appuser).
+      - media_files:/app/media
+    networks:
+      - edge_guard
+    restart: unless-stopped
+
+  admin:
+    image: ${ADMIN_IMAGE:-aifxnetworks/edge-guard-admin:latest}
+    container_name: edge_guard_admin
+    ports:
+      - "${ADMIN_PORT:-5173}:80"
+    env_file:
+      - .env.admin
+    depends_on:
+      - backend
+    networks:
+      - edge_guard
+    restart: unless-stopped
+
+volumes:
+  media_files:
+
+networks:
+  edge_guard:
+    driver: bridge

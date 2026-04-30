@@ -1,6 +1,13 @@
 #!/bin/sh
 set -e
 
+# Volumen Docker en /app/media suele ser root:root; la app corre como appuser y no podría escribir fotos.
+if [ "$(id -u)" = 0 ]; then
+  mkdir -p /app/media
+  chown -R appuser:appgroup /app/media
+  exec gosu appuser "$0" "$@"
+fi
+
 echo "Esperando a que PostgreSQL esté listo..."
 # El contenedor ya depende de db (condition: healthy), pero dejamos una pequeña pausa de seguridad
 sleep 2

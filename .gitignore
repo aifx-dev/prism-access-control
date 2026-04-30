@@ -1,4 +1,6 @@
 .env
+deploy/vps/.env.backend
+deploy/vps/.env.admin
 __pycache__/
 *.pyc
 *.pyo
